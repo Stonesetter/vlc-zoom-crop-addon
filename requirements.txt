@@ -1,9 +1,18 @@
-# Core image processing
+# Core image processing (vlc_upscaler.py, video_processor.py)
 opencv-python>=4.5.0
 numpy>=1.21.0
 
-# System dependency (not pip-installable):
+# Interactive GUI player (vlc_player_gui.py)
+python-vlc>=3.0.18122   # Python bindings for libVLC (VLC must be installed on the system)
+PyQt5>=5.15.0           # Qt5 window toolkit
+
+# System dependencies (not pip-installable):
 # FFmpeg - required for video_processor.py
 #   Ubuntu/Debian: sudo apt install ffmpeg
 #   macOS:         brew install ffmpeg
 #   Windows:       https://ffmpeg.org/download.html
+#
+# VLC media player - required for vlc_player_gui.py (provides libvlc)
+#   Ubuntu/Debian: sudo apt install vlc
+#   macOS:         brew install --cask vlc
+#   Windows:       https://www.videolan.org/vlc/

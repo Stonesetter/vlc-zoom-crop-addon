@@ -40,13 +40,16 @@ if [ $# -eq 0 ]; then
     echo "Usage: ./quickstart.sh [command] [args]"
     echo ""
     echo "Commands:"
+    echo "  gui         Launch the interactive GUI player (Shift+scroll zoom, drag-to-crop)"
     echo "  single      Process a single image frame"
     echo "  video       Process an entire video file"
     echo "  compare     Compare interpolation methods"
     echo "  batch       Process multiple videos"
-    echo "  install     Install VLC plugin"
+    echo "  install     Install VLC Lua plugin"
     echo ""
     echo "Examples:"
+    echo "  ./quickstart.sh gui                                               # open GUI player"
+    echo "  ./quickstart.sh gui myvideo.mp4                                   # open GUI with file"
     echo "  ./quickstart.sh single input.jpg 100 100 800 600 2.0 lanczos"
     echo "  ./quickstart.sh video input.mp4 output.mp4 100 100 1280 720 1.5"
     echo "  ./quickstart.sh compare input.jpg 100 100 640 480 1.5"
@@ -55,6 +58,25 @@ if [ $# -eq 0 ]; then
 fi
 
 COMMAND=$1
+
+# ========== GUI PLAYER ==========
+if [ "$COMMAND" = "gui" ]; then
+    # Check for PyQt5 and python-vlc; offer to install if missing
+    if ! python3 -c "import PyQt5" 2>/dev/null; then
+        echo "PyQt5 not found. Installing..."
+        pip3 install PyQt5 --break-system-packages 2>/dev/null || pip3 install PyQt5
+    fi
+    if ! python3 -c "import vlc" 2>/dev/null; then
+        echo "python-vlc not found. Installing..."
+        pip3 install python-vlc --break-system-packages 2>/dev/null || pip3 install python-vlc
+    fi
+
+    # Optional: pass a video file as the second argument
+    VIDEO_ARG="${2:-}"
+    echo "Launching GUI player..."
+    python3 vlc_player_gui.py $VIDEO_ARG
+    exit 0
+fi
 
 # ========== INSTALL PLUGIN ==========
 if [ "$COMMAND" = "install" ]; then
