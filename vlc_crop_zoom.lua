@@ -143,36 +143,64 @@ function build_dialog()
     -- Row 1: live status line showing current video resolution
     lbl_status = dlg:add_label("Play a video, then use the controls below.", 1, 1, 4, 1)
 
-    -- Row 2: section header
-    dlg:add_label("__________ Crop Region (pixels) __________", 1, 2, 4, 1)
+    -- Row 2: quick zoom section header
+    dlg:add_label("── Quick Zoom ──────────────────────────────────", 1, 2, 4, 1)
 
-    -- Row 3: X and Y
-    dlg:add_label("X (left edge):", 1, 3, 1, 1)
-    txt_x = dlg:add_text_input("0", 2, 3, 1, 1)
-    dlg:add_label("Y (top edge):", 3, 3, 1, 1)
-    txt_y = dlg:add_text_input("0", 4, 3, 1, 1)
+    -- Row 3: quick zoom buttons (all four in one row)
+    dlg:add_button("Zoom In  +25%",  btn_zoom_in,      1, 3, 1, 1)
+    dlg:add_button("Zoom Out -25%",  btn_zoom_out,     2, 3, 1, 1)
+    dlg:add_button("2×  Center",     btn_zoom2_center, 3, 3, 1, 1)
+    dlg:add_button("4×  Center",     btn_zoom4_center, 4, 3, 1, 1)
 
-    -- Row 4: Width and Height
-    dlg:add_label("Width:", 1, 4, 1, 1)
-    txt_w = dlg:add_text_input("1920", 2, 4, 1, 1)
-    dlg:add_label("Height:", 3, 4, 1, 1)
-    txt_h = dlg:add_text_input("1080", 4, 4, 1, 1)
+    -- Row 4: crop section header
+    dlg:add_label("── Crop Region (pixels) ────────────────────────", 1, 4, 4, 1)
 
-    -- Row 5: zoom header
-    dlg:add_label("__________ Zoom __________", 1, 5, 4, 1)
+    -- Row 5: X and Y
+    dlg:add_label("X (left edge):", 1, 5, 1, 1)
+    txt_x = dlg:add_text_input("0", 2, 5, 1, 1)
+    dlg:add_label("Y (top edge):", 3, 5, 1, 1)
+    txt_y = dlg:add_text_input("0", 4, 5, 1, 1)
 
-    -- Row 6: zoom input
-    dlg:add_label("Zoom level (e.g. 1.5, 2.0):", 1, 6, 2, 1)
-    txt_zoom = dlg:add_text_input("1.0", 3, 6, 2, 1)
+    -- Row 6: Width and Height
+    dlg:add_label("Width:", 1, 6, 1, 1)
+    txt_w = dlg:add_text_input("1920", 2, 6, 1, 1)
+    dlg:add_label("Height:", 3, 6, 1, 1)
+    txt_h = dlg:add_text_input("1080", 4, 6, 1, 1)
 
-    -- Row 7: Apply / Reset buttons
-    dlg:add_button("Apply", do_apply, 1, 7, 2, 1)
-    dlg:add_button("Reset", do_reset, 3, 7, 2, 1)
+    -- Row 7: zoom level section header
+    dlg:add_label("── Manual Zoom ─────────────────────────────────", 1, 7, 4, 1)
 
-    -- Row 8: quick-reference tip
-    dlg:add_label("Tip: X=0 Y=0 crops from top-left. Zoom 1.0 = no zoom.", 1, 8, 4, 1)
+    -- Row 8: zoom input
+    dlg:add_label("Zoom level (e.g. 1.5, 2.0):", 1, 8, 2, 1)
+    txt_zoom = dlg:add_text_input("1.0", 3, 8, 2, 1)
+
+    -- Row 9: Apply / Reset buttons
+    dlg:add_button("Apply", do_apply, 1, 9, 2, 1)
+    dlg:add_button("Reset", do_reset, 3, 9, 2, 1)
+
+    -- Row 10: quick-reference tip
+    dlg:add_label("Tip: X=0 Y=0 starts at top-left.  Zoom 1.0 = no zoom.", 1, 10, 4, 1)
 
     dlg:show()
+end
+
+-- Button callbacks for the quick-zoom row in the dialog
+function btn_zoom_in()
+    cur_zoom = math.min(16.0, cur_zoom + 0.25)
+    apply_zoom_only(cur_zoom)
+end
+
+function btn_zoom_out()
+    cur_zoom = math.max(0.25, cur_zoom - 0.25)
+    apply_zoom_only(cur_zoom)
+end
+
+function btn_zoom2_center()
+    quick_zoom_center(2.0)
+end
+
+function btn_zoom4_center()
+    quick_zoom_center(4.0)
 end
 
 -- ============================================================================
