@@ -60,21 +60,24 @@ COMMAND=$1
 if [ "$COMMAND" = "install" ]; then
     echo "Installing VLC Plugin..."
     
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        mkdir -p ~/.local/share/vlc/lua/extensions/
-        cp vlc_crop_zoom.lua ~/.local/share/vlc/lua/extensions/
-        echo "✓ Installed to ~/.local/share/vlc/lua/extensions/"
-    
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        mkdir -p ~/Library/Application\ Support/VLC/lua/extensions/
-        cp vlc_crop_zoom.lua ~/Library/Application\ Support/VLC/lua/extensions/
-        echo "✓ Installed to ~/Library/Application Support/VLC/lua/extensions/"
-    
-    else
-        echo "Please copy vlc_crop_zoom.lua to:"
-        echo "  Windows: %APPDATA%\VLC\lua\extensions\"
-        exit 1
-    fi
+    # Use case for POSIX-compatible OS detection (avoids [[ ]] portability issues)
+    case "$OSTYPE" in
+        linux-gnu*)
+            mkdir -p ~/.local/share/vlc/lua/extensions/
+            cp vlc_crop_zoom.lua ~/.local/share/vlc/lua/extensions/
+            echo "✓ Installed to ~/.local/share/vlc/lua/extensions/"
+            ;;
+        darwin*)
+            mkdir -p ~/Library/Application\ Support/VLC/lua/extensions/
+            cp vlc_crop_zoom.lua ~/Library/Application\ Support/VLC/lua/extensions/
+            echo "✓ Installed to ~/Library/Application Support/VLC/lua/extensions/"
+            ;;
+        *)
+            echo "Please copy vlc_crop_zoom.lua to:"
+            echo "  Windows: %APPDATA%\\VLC\\lua\\extensions\\"
+            exit 1
+            ;;
+    esac
     
     echo ""
     echo "Restart VLC and go to Tools > Plug-ins and Extensions"
@@ -233,9 +236,10 @@ if [ "$COMMAND" = "batch" ]; then
     
     COUNT=0
     while IFS= read -r INPUT; do
-        if [ -z "$INPUT" ] || [[ "$INPUT" =~ ^# ]]; then
-            continue
-        fi
+        # Skip empty lines and comment lines (# prefix) - POSIX case avoids [[ =~ ]]
+        case "$INPUT" in
+            ''|'#'*) continue ;;
+        esac
         
         if [ ! -f "$INPUT" ]; then
             echo "⚠ Skipping missing: $INPUT"

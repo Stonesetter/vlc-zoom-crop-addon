@@ -1,2 +1,11 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Force LF for shell scripts on all platforms so they run correctly on Linux/macOS
+*.sh text eol=lf
+
+# Force LF for Lua scripts
+*.lua text eol=lf
+
+# Force LF for Python scripts
+*.py text eol=lf
