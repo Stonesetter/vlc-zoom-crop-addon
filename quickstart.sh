@@ -37,7 +37,7 @@ echo ""
 
 # Parse arguments
 if [ $# -eq 0 ]; then
-    echo "Usage: ./quickstart.sh <command> [args]"
+    echo "Usage: ./quickstart.sh [command] [args]"
     echo ""
     echo "Commands:"
     echo "  single      Process a single image frame"
@@ -84,7 +84,7 @@ fi
 # ========== SINGLE IMAGE PROCESSING ==========
 if [ "$COMMAND" = "single" ]; then
     if [ $# -lt 8 ]; then
-        echo "Usage: ./quickstart.sh single <input> <x> <y> <width> <height> <zoom> <method>"
+        echo "Usage: ./quickstart.sh single [input] [x] [y] [width] [height] [zoom] [method]"
         echo ""
         echo "Example (crop face and 2x zoom):"
         echo "  ./quickstart.sh single photo.jpg 800 400 400 400 2.5 lanczos"
@@ -120,7 +120,7 @@ fi
 # ========== VIDEO PROCESSING ==========
 if [ "$COMMAND" = "video" ]; then
     if [ $# -lt 8 ]; then
-        echo "Usage: ./quickstart.sh video <input> <output> <x> <y> <width> <height> <zoom>"
+        echo "Usage: ./quickstart.sh video [input] [output] [x] [y] [width] [height] [zoom]"
         echo ""
         echo "Example (sports video, 1.5x zoom on action region):"
         echo "  ./quickstart.sh video game.mp4 output.mp4 200 150 1200 800 1.5"
@@ -155,7 +155,7 @@ fi
 # ========== COMPARE METHODS ==========
 if [ "$COMMAND" = "compare" ]; then
     if [ $# -lt 6 ]; then
-        echo "Usage: ./quickstart.sh compare <input> <x> <y> <width> <height> [zoom]"
+        echo "Usage: ./quickstart.sh compare [input] [x] [y] [width] [height] [zoom]"
         echo ""
         echo "Example:"
         echo "  ./quickstart.sh compare photo.jpg 100 100 640 480 1.5"
@@ -211,7 +211,7 @@ if [ "$COMMAND" = "batch" ]; then
     echo ""
     
     if [ $# -lt 5 ]; then
-        echo "Usage: ./quickstart.sh batch <x> <y> <width> <height> <zoom>"
+        echo "Usage: ./quickstart.sh batch [x] [y] [width] [height] [zoom]"
         exit 1
     fi
     

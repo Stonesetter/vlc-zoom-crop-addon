@@ -27,8 +27,12 @@ fi
 
 # --- Install Python dependencies ---
 echo "[1/3] Installing Python dependencies..."
-python3 -m pip install --upgrade pip -q
-python3 -m pip install -r "$SCRIPT_DIR/requirements.txt"
+# Try normal install first; fall back to --break-system-packages for Ubuntu 23.04+
+# which blocks pip installs outside a virtual environment by default
+python3 -m pip install --upgrade pip -q 2>/dev/null || \
+    python3 -m pip install --upgrade pip -q --break-system-packages
+python3 -m pip install -r "$SCRIPT_DIR/requirements.txt" 2>/dev/null || \
+    python3 -m pip install -r "$SCRIPT_DIR/requirements.txt" --break-system-packages
 echo "      Done."
 echo ""
 
