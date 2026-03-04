@@ -1,0 +1,9 @@
+# Core image processing
+opencv-python>=4.5.0
+numpy>=1.21.0
+
+# System dependency (not pip-installable):
+# FFmpeg - required for video_processor.py
+#   Ubuntu/Debian: sudo apt install ffmpeg
+#   macOS:         brew install ffmpeg
+#   Windows:       https://ffmpeg.org/download.html
