@@ -1,12 +1,12 @@
--- VLC Crop & Zoom Pro Extension  (v2.0)
--- Crop any pixel region and zoom into it — all inside VLC, no external tools.
+-- VLC Crop & Zoom Pro Extension  (v3.0)
 --
--- How it works:
---   VLC's "crop" variable selects a rectangular region of the video.
---   VLC's "zoom" variable is a pixel-scale factor (2.0 = each pixel drawn 2x).
---   To "zoom into" the video you must set BOTH together:
---     crop a smaller centre region  +  zoom up so it fills the window.
---   e.g. 2x zoom on 1920x1080 → crop centre 960x540, zoom=2.0 → fills window.
+-- How it works (v3 — crop-only method):
+--   Sets VLC's individual crop-margin variables (crop-left, crop-top,
+--   crop-right, crop-bottom) on the vout.  VLC automatically stretches
+--   the remaining region to fill the window.  No "zoom" variable needed.
+--
+--   2x centre zoom on 1920x1080 = crop 480px off each side, 270px off
+--   top and bottom → the remaining 960x540 centre fills the window.
 --
 -- Install:
 --   Linux:   ~/.local/share/vlc/lua/extensions/vlc_crop_zoom.lua
@@ -26,7 +26,7 @@
 function descriptor()
     return {
         title       = "Crop & Zoom Pro",
-        version     = "2.0",
+        version     = "3.0",
         author      = "Stonesetter",
         shortdesc   = "Crop and zoom video regions",
         description = "Crop any pixel region of the video and zoom into it. "
@@ -47,17 +47,17 @@ end
 -- STATE
 -- ============================================================================
 
-local dlg        = nil   -- dialog window handle
-local lbl_status = nil   -- status label widget
-local txt_x      = nil   -- crop X input widget
-local txt_y      = nil   -- crop Y input widget
-local txt_w      = nil   -- crop width input widget
-local txt_h      = nil   -- crop height input widget
-local lbl_zoom   = nil   -- zoom display label (read-only, not a text input)
+local dlg        = nil
+local lbl_status = nil
+local txt_x      = nil   -- crop X (left edge)
+local txt_y      = nil   -- crop Y (top edge)
+local txt_w      = nil   -- crop width
+local txt_h      = nil   -- crop height
+local lbl_zoom   = nil   -- zoom display label
 
-local vid_w    = 0       -- detected video width  (0 until a video plays)
-local vid_h    = 0       -- detected video height
-local cur_zoom = 1.0     -- current zoom level (1.0 = full frame, no zoom)
+local vid_w    = 0       -- native video width  (0 until detected)
+local vid_h    = 0       -- native video height
+local cur_zoom = 1.0     -- current zoom level (1.0 = full frame)
 
 -- ============================================================================
 -- VLC LIFECYCLE
@@ -70,7 +70,6 @@ function activate()
 end
 
 function deactivate()
-    -- Reset crop/zoom, but guard against errors during VLC shutdown
     pcall(do_reset)
     if dlg then
         dlg:delete()
@@ -84,6 +83,7 @@ end
 
 function input_changed()
     refresh_dimensions()
+    update_dialog_fields(0, 0, vid_w, vid_h)
 end
 
 function trigger_menu(id)
@@ -158,22 +158,42 @@ function build_dialog()
 end
 
 -- ============================================================================
--- QUICK ZOOM  (centre-crop + proportional zoom — confirmed working pattern)
+-- CROP HELPER — the single function that actually talks to VLC
 -- ============================================================================
 
---- Set zoom to an exact level by centre-cropping and scaling proportionally.
---- This is the pattern confirmed working for 2x and 4x:
----   crop = (vid_w/zoom) x (vid_h/zoom) centred  +  zoom = zoom
----   e.g. 2x on 1920x1080 → crop 960x540+480+270, zoom=2.0 → fills window.
-function set_center_zoom(zoom)
+--- Apply crop by setting individual margin variables on the vout.
+--- VLC stretches the remaining region to fill the window automatically.
+---
+--- @param left   pixels to remove from left edge
+--- @param top    pixels to remove from top edge
+--- @param right  pixels to remove from right edge
+--- @param bottom pixels to remove from bottom edge
+function apply_crop_margins(left, top, right, bottom)
     local vout = vlc.object.vout()
-    if not vout then
-        set_status("No video playing — start a video first.")
-        return
-    end
+    if not vout then return false end
+
+    vlc.var.set(vout, "crop-left",   math.max(0, left))
+    vlc.var.set(vout, "crop-top",    math.max(0, top))
+    vlc.var.set(vout, "crop-right",  math.max(0, right))
+    vlc.var.set(vout, "crop-bottom", math.max(0, bottom))
+    return true
+end
+
+--- Convert X, Y, W, H rectangle to crop margins and apply.
+function apply_crop_rect(x, y, w, h)
+    local right  = vid_w - x - w
+    local bottom = vid_h - y - h
+    return apply_crop_margins(x, y, right, bottom)
+end
+
+-- ============================================================================
+-- QUICK ZOOM  (crop-only — no zoom variable)
+-- ============================================================================
+
+function set_center_zoom(zoom)
     refresh_dimensions()
     if vid_w == 0 or vid_h == 0 then
-        set_status("Cannot detect video size — try again after video loads.")
+        set_status("No video playing or cannot detect size.")
         return
     end
 
@@ -181,9 +201,8 @@ function set_center_zoom(zoom)
     cur_zoom = zoom
 
     if zoom <= 1.0 then
-        -- Full frame: remove crop, auto-fit
-        vlc.var.set(vout, "crop", "")
-        vlc.var.set(vout, "zoom", 0)
+        -- Full frame: clear all crop margins
+        apply_crop_margins(0, 0, 0, 0)
         update_dialog_fields(0, 0, vid_w, vid_h)
         set_status("Full view.  Video: " .. vid_w .. "x" .. vid_h)
         vlc.osd.message("Full view")
@@ -193,7 +212,7 @@ function set_center_zoom(zoom)
     -- Crop a proportional centre region
     local cw = math.floor(vid_w / zoom)
     local ch = math.floor(vid_h / zoom)
-    -- Ensure even dimensions (some codecs need it)
+    -- Even dimensions
     cw = cw - (cw % 2)
     ch = ch - (ch % 2)
     if cw < 2 then cw = 2 end
@@ -201,18 +220,18 @@ function set_center_zoom(zoom)
     local cx = math.floor((vid_w - cw) / 2)
     local cy = math.floor((vid_h - ch) / 2)
 
-    local crop_str = cw .. "x" .. ch .. "+" .. cx .. "+" .. cy
-    vlc.var.set(vout, "crop", crop_str)
-    vlc.var.set(vout, "zoom", zoom)
+    if not apply_crop_rect(cx, cy, cw, ch) then
+        set_status("No video playing — start a video first.")
+        return
+    end
 
     update_dialog_fields(cx, cy, cw, ch)
-
     local msg = string.format("%.2fx zoom  (centre %dx%d)", zoom, cw, ch)
     set_status(msg)
     vlc.osd.message(msg)
 end
 
--- Button callbacks (called from dialog buttons and trigger_menu)
+-- Button callbacks
 function btn_zoom_in()
     set_center_zoom(cur_zoom + 0.25)
 end
@@ -230,28 +249,22 @@ function btn_zoom4()
 end
 
 -- ============================================================================
--- MANUAL CROP  (user-specified region, auto-compute zoom to fill window)
+-- MANUAL CROP
 -- ============================================================================
 
 function do_apply_crop()
-    local vout = vlc.object.vout()
-    if not vout then
-        set_status("No video playing — start a video first.")
-        return
-    end
     refresh_dimensions()
     if vid_w == 0 or vid_h == 0 then
-        set_status("Cannot detect video size — try again after video loads.")
+        set_status("No video playing or cannot detect size.")
         return
     end
 
-    -- Read crop values from dialog fields
     local x = math.max(0, math.floor(tonumber(txt_x:get_text()) or 0))
     local y = math.max(0, math.floor(tonumber(txt_y:get_text()) or 0))
     local w = math.floor(tonumber(txt_w:get_text()) or vid_w)
     local h = math.floor(tonumber(txt_h:get_text()) or vid_h)
 
-    -- Clamp to video bounds
+    -- Clamp
     if x >= vid_w then x = 0 end
     if y >= vid_h then y = 0 end
     if w < 1 then w = vid_w end
@@ -259,37 +272,29 @@ function do_apply_crop()
     if x + w > vid_w then w = vid_w - x end
     if y + h > vid_h then h = vid_h - y end
 
-    -- Ensure even dimensions (some codecs require it)
+    -- Even dimensions
     w = w - (w % 2)
     h = h - (h % 2)
     if w < 2 then w = 2 end
     if h < 2 then h = 2 end
 
-    -- Full frame? Just reset
-    if x == 0 and y == 0 and w == vid_w and h == vid_h then
+    -- Full frame? Reset
+    if x == 0 and y == 0 and w >= vid_w and h >= vid_h then
         do_reset()
         return
     end
 
-    -- Apply the crop
-    local crop_str = w .. "x" .. h .. "+" .. x .. "+" .. y
-    vlc.var.set(vout, "crop", crop_str)
+    if not apply_crop_rect(x, y, w, h) then
+        set_status("No video playing — start a video first.")
+        return
+    end
 
-    -- Compute the zoom factor that fills the window with this crop.
-    -- Use the smaller ratio so the entire crop region is visible (fit, no clip).
-    -- This matches the pattern that works for 2x/4x centre zoom.
-    local zoom_w = vid_w / w
-    local zoom_h = vid_h / h
-    local zoom   = math.min(zoom_w, zoom_h)
-    zoom = math.max(1.0, zoom)
-
-    vlc.var.set(vout, "zoom", zoom)
-    cur_zoom = zoom
-
-    -- Write computed values back to fields
+    -- Update zoom label to reflect effective magnification
+    cur_zoom = math.min(vid_w / w, vid_h / h)
+    cur_zoom = math.max(1.0, cur_zoom)
     update_dialog_fields(x, y, w, h)
 
-    local msg = string.format("Crop: %dx%d+%d+%d  (%.1fx)", w, h, x, y, zoom)
+    local msg = string.format("Crop: %dx%d+%d+%d  (%.1fx)", w, h, x, y, cur_zoom)
     set_status(msg)
     vlc.osd.message(msg)
 end
@@ -299,12 +304,7 @@ end
 -- ============================================================================
 
 function do_reset()
-    local vout = vlc.object.vout()
-    if vout then
-        vlc.var.set(vout, "crop", "")
-        vlc.var.set(vout, "zoom", 0)   -- 0 = auto-fit (VLC default)
-    end
-
+    apply_crop_margins(0, 0, 0, 0)
     cur_zoom = 1.0
     refresh_dimensions()
     update_dialog_fields(0, 0, vid_w, vid_h)
@@ -321,11 +321,9 @@ end
 -- HELPERS
 -- ============================================================================
 
---- Detect video dimensions from the vout and store in vid_w / vid_h.
 function refresh_dimensions()
     local vout = vlc.object.vout()
     if not vout then return end
-
     local w = vlc.var.get(vout, "video-width")
     local h = vlc.var.get(vout, "video-height")
     if w and h and w > 0 and h > 0 then
@@ -334,13 +332,11 @@ function refresh_dimensions()
     end
 end
 
---- Update all dialog fields to reflect the current state.
 function update_dialog_fields(x, y, w, h)
     if txt_x then txt_x:set_text(tostring(x or 0)) end
     if txt_y then txt_y:set_text(tostring(y or 0)) end
     if txt_w then txt_w:set_text(tostring(w or vid_w)) end
     if txt_h then txt_h:set_text(tostring(h or vid_h)) end
-
     if lbl_zoom then
         if cur_zoom <= 1.0 then
             lbl_zoom:set_text("Current zoom: 1.0x  (full frame)")
@@ -351,7 +347,6 @@ function update_dialog_fields(x, y, w, h)
     end
 end
 
---- Update the status label (safe to call even if dialog isn't open).
 function set_status(msg)
     if lbl_status then
         lbl_status:set_text(msg)
