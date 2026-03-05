@@ -193,6 +193,9 @@ class SnapshotCropPicker(QWidget):
         ww = self.width()
         wh = self.height()
 
+        if iw < 1 or ih < 1 or ww < 1 or wh < 1:
+            return None
+
         # Scale used by paintEvent (KeepAspectRatio)
         scale = min(ww / iw, wh / ih)
         off_x = (ww - iw * scale) / 2
@@ -242,12 +245,13 @@ class PlayerWindow(QMainWindow):
         self._player       = self._vlc_instance.media_player_new()
 
         # State
-        self._vid_w           = 0      # detected after first tick
-        self._vid_h           = 0
-        self._zoom            = 1.0    # current zoom level
-        self._pending_crop    = None   # (vx, vy, vw, vh) drawn but not applied
-        self._snap_widget     = None   # SnapshotCropPicker when active
-        self._overlay_raised  = False  # True once overlay has been raised over VLC
+        self._vid_w              = 0      # detected after first tick
+        self._vid_h              = 0
+        self._zoom               = 1.0   # current zoom level
+        self._pending_crop       = None  # (vx, vy, vw, vh) drawn but not applied
+        self._snap_widget        = None  # SnapshotCropPicker when active
+        self._overlay_raised     = False # True once overlay has been raised over VLC
+        self._picker_was_playing = False # was video playing when crop picker opened
 
         self._build_ui()
 
@@ -579,9 +583,15 @@ class PlayerWindow(QMainWindow):
         crop_str = f"{vw}x{vh}+{vx}+{vy}"
         self._player.video_set_crop_geometry(crop_str)
         self._player.video_set_scale(0)   # auto-fit the crop to the window
-        self._set_status(
-            f"Crop applied: {crop_str}   Zoom: {self._zoom:.2f}×"
-        )
+
+        # Reset zoom state — manual crop overrides centre-zoom
+        self._zoom = 1.0
+        self.lbl_zoom.setText("Zoom: 1.00×")
+        self.zoom_slider.blockSignals(True)
+        self.zoom_slider.setValue(4)
+        self.zoom_slider.blockSignals(False)
+
+        self._set_status(f"Crop applied: {crop_str}")
 
     # =========================================================================
     # RESET
@@ -602,6 +612,18 @@ class PlayerWindow(QMainWindow):
             self._set_status(
                 "Reset.   Shift+scroll = zoom   |   Draw Crop Box to select region"
             )
+
+    # =========================================================================
+    # CLEANUP
+    # =========================================================================
+
+    def closeEvent(self, event):
+        """Release VLC resources before the window closes."""
+        self._tick.stop()
+        self._player.stop()
+        self._player.release()
+        self._vlc_instance.release()
+        super().closeEvent(event)
 
     # =========================================================================
     # HELPERS

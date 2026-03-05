@@ -18,7 +18,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Stonesetter/vlc-zoom-crop-addon",
-    py_modules=["vlc_upscaler", "video_processor"],
+    py_modules=["vlc_upscaler", "video_processor", "vlc_player_gui"],
     python_requires=">=3.8",
     install_requires=requirements,
     entry_points={

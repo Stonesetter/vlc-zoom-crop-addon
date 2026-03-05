@@ -74,7 +74,11 @@ if [ "$COMMAND" = "gui" ]; then
     # Optional: pass a video file as the second argument
     VIDEO_ARG="${2:-}"
     echo "Launching GUI player..."
-    python3 vlc_player_gui.py $VIDEO_ARG
+    if [ -n "$VIDEO_ARG" ]; then
+        python3 vlc_player_gui.py "$VIDEO_ARG"
+    else
+        python3 vlc_player_gui.py
+    fi
     exit 0
 fi
 
@@ -102,7 +106,7 @@ if [ "$COMMAND" = "install" ]; then
     esac
     
     echo ""
-    echo "Restart VLC and go to Tools > Plug-ins and Extensions"
+    echo "Restart VLC, then go to Tools > Extensions > Crop & Zoom Pro"
     exit 0
 fi
 
